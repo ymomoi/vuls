@@ -599,3 +599,141 @@ func TestParseAptCachePolicy(t *testing.T) {
 		}
 	}
 }
+
+func TestGetCveIDParsingChangelogBySemVer(t *testing.T) {
+
+	var tests = []struct {
+		in       []string
+		expected []string
+	}{
+		{
+			[]string{
+				"gcc-4.9-base",
+				"4.9.0-0ubuntu1",
+				`gccgo-4.9 (4.9.3-0ubuntu4) trusty-proposed; urgency=medium
+gcc-4.9 (4.9.3-2ubuntu1) wily; urgency=medium
+gcc-4.9 (4.9.2-2) unstable; urgency=medium
+gcc-4.9 (4.9.2-1ubuntu1) vivid; urgency=medium
+gcc-4.9 (4.9.2-1) unstable; urgency=medium
+  Merge from gnat-4.9 (4.9.1-4) unstable; urgency=low.
+  Merge from gnat-4.9 (4.9.1-3) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.1-2) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.1-1) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.0-2) unstable; urgency=low
+gcc-4.9 (4.9.2-0ubuntu1) utopic-proposed; urgency=medium
+gcc-4.9 (4.9.2-1ubuntu1) vivid; urgency=medium
+gcc-4.9 (4.9.2-1) unstable; urgency=medium
+  Merge from gnat-4.9 (4.9.1-4) unstable; urgency=low.
+  Merge from gnat-4.9 (4.9.1-3) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.1-2) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.1-1) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.0-2) unstable; urgency=low
+gcc-4.9 (4.9.1-19ubuntu1) vivid; urgency=medium
+gcc-4.9 (4.9.1-19) unstable; urgency=medium
+gcc-4.9 (4.9.1-5) unstable; urgency=medium
+gcc-4.9 (4.9.1-4ubuntu3) utopic; urgency=medium
+gcc-4.9 (4.9.1-4ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.1-4ubuntu1) utopic; urgency=medium
+gcc-4.9 (4.9.1-4) unstable; urgency=high
+    - CVE-2014-5044, fix integer overflows in array allocation in libgfortran.
+gcc-4.9 (4.9.1-3ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.1-3ubuntu1) utopic; urgency=medium
+gcc-4.9 (4.9.1-3) unstable; urgency=medium
+gcc-4.9 (4.9.1-2ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.1-2) unstable; urgency=medium
+gcc-4.9 (4.9.1-1) unstable; urgency=medium
+    - CVE-2014-5045, fix integer overflows in array allocation in libgfortran.
+gcc-4.9 (4.9.0-11ubuntu1) utopic; urgency=medium
+gcc-4.9 (4.9.0-11) unstable; urgency=medium
+gcc-4.9 (4.9.0-10ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.0-10) unstable; urgency=medium
+gcc-4.9 (4.9.0-9ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.0-9ubuntu1) utopic; urgency=medium
+    - CVE-2014-5050, fix integer overflows in array allocation in libgfortran.
+gcc-4.9 (4.9.0-9) unstable; urgency=medium
+gcc-4.9 (4.9.0-8ubuntu1) utopic; urgency=medium
+gcc-4.9 (4.9.0-8) unstable; urgency=medium
+gcc-4.9 (4.9.0-7ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.0-7ubuntu1) utopic; urgency=medium`,
+			},
+			[]string{
+				"CVE-2014-5044",
+				"CVE-2014-5045",
+			},
+		},
+		{
+			//case2
+			[]string{
+				"libgcc1",
+				"1:4.9.0",
+				`gccgo-4.9 (4.9.3-0ubuntu4) trusty-proposed; urgency=medium
+gcc-4.9 (4.9.3-2ubuntu1) wily; urgency=medium
+gcc-4.9 (4.9.2-2) unstable; urgency=medium
+gcc-4.9 (4.9.2-1ubuntu1) vivid; urgency=medium
+gcc-4.9 (4.9.2-1) unstable; urgency=medium
+  Merge from gnat-4.9 (4.9.1-4) unstable; urgency=low.
+  Merge from gnat-4.9 (4.9.1-3) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.1-2) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.1-1) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.0-2) unstable; urgency=low
+gcc-4.9 (4.9.2-0ubuntu1) utopic-proposed; urgency=medium
+gcc-4.9 (4.9.2-1ubuntu1) vivid; urgency=medium
+gcc-4.9 (4.9.2-1) unstable; urgency=medium
+  Merge from gnat-4.9 (4.9.1-4) unstable; urgency=low.
+  Merge from gnat-4.9 (4.9.1-3) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.1-2) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.1-1) unstable; urgency=low
+  Merge from gnat-4.9 (4.9.0-2) unstable; urgency=low
+gcc-4.9 (4.9.1-19ubuntu1) vivid; urgency=medium
+gcc-4.9 (4.9.1-19) unstable; urgency=medium
+gcc-4.9 (4.9.1-5) unstable; urgency=medium
+gcc-4.9 (4.9.1-4ubuntu3) utopic; urgency=medium
+gcc-4.9 (4.9.1-4ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.1-4ubuntu1) utopic; urgency=medium
+gcc-4.9 (4.9.1-4) unstable; urgency=high
+    - CVE-2014-5044, fix integer overflows in array allocation in libgfortran.
+gcc-4.9 (4.9.1-3ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.1-3ubuntu1) utopic; urgency=medium
+gcc-4.9 (4.9.1-3) unstable; urgency=medium
+gcc-4.9 (4.9.1-2ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.1-2) unstable; urgency=medium
+gcc-4.9 (4.9.1-1) unstable; urgency=medium
+    - CVE-2014-5045, fix integer overflows in array allocation in libgfortran.
+gcc-4.9 (4.9.0-11ubuntu1) utopic; urgency=medium
+gcc-4.9 (4.9.0-11) unstable; urgency=medium
+gcc-4.9 (4.9.0-10ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.0-10) unstable; urgency=medium
+gcc-4.9 (4.9.0-9ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.0-9ubuntu1) utopic; urgency=medium
+    - CVE-2014-5050, fix integer overflows in array allocation in libgfortran.
+gcc-4.9 (4.9.0-9) unstable; urgency=medium
+gcc-4.9 (4.9.0-8ubuntu1) utopic; urgency=medium
+gcc-4.9 (4.9.0-8) unstable; urgency=medium
+gcc-4.9 (4.9.0-7ubuntu2) utopic; urgency=medium
+gcc-4.9 (4.9.0-7ubuntu1) utopic; urgency=medium`,
+			},
+			[]string{
+				"CVE-2014-5044",
+				"CVE-2014-5045",
+			},
+		},
+	}
+
+	d := newDebian(config.ServerInfo{})
+	for _, tt := range tests {
+		actual, err := d.getCveIDParsingChangelogBySemVer(tt.in[2], tt.in[0], tt.in[1])
+		if err != nil {
+			t.Errorf("%s", err)
+			continue
+		}
+		if len(actual) != len(tt.expected) {
+			t.Errorf("Len of return array are'nt same. expected %#v, actual %#v", tt.expected, actual)
+			continue
+		}
+		for i := range tt.expected {
+			if actual[i] != tt.expected[i] {
+				t.Errorf("expected %s, actual %s", tt.expected[i], actual[i])
+			}
+		}
+	}
+}

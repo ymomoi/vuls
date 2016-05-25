@@ -19,12 +19,14 @@ package scan
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/cveapi"
 	"github.com/future-architect/vuls/models"
@@ -549,12 +551,19 @@ func (o *debian) scanPackageCveIds(pack models.PackageInfo) (cveIds []string, er
 		return nil, nil
 
 	}
+
 	cveIds, err = o.getCveIDParsingChangelog(r.Stdout, pack.Name, pack.Version)
-	if err != nil {
-		trimUbuntu := strings.Split(pack.Version, "ubuntu")[0]
-		return o.getCveIDParsingChangelog(r.Stdout, pack.Name, trimUbuntu)
+	if err == nil {
+		return
 	}
-	return
+
+	cveIds, err = o.getCveIDParsingChangelogBySemVer(r.Stdout, pack.Name, pack.Version)
+	if err != nil {
+		log.Println("Failed to Parse changelog. Please add GitHub issue. err:", err)
+	}
+
+	// Not return the error to go on scannig.
+	return cveIds, nil
 }
 
 func (o *debian) getCveIDParsingChangelog(changelog string,
@@ -565,24 +574,20 @@ func (o *debian) getCveIDParsingChangelog(changelog string,
 		return
 	}
 
-	ver := strings.Split(versionOrLater, "ubuntu")[0]
-	cveIDs, err = o.parseChangelog(changelog, packName, ver)
-	if err == nil {
-		return
+	if o.Family == "ubuntu" {
+		ver := strings.Split(versionOrLater, "ubuntu")[0]
+		cveIDs, err = o.parseChangelog(changelog, packName, ver)
+		if err == nil {
+			return
+		}
 	}
 
 	splittedByColon := strings.Split(versionOrLater, ":")
 	if 1 < len(splittedByColon) {
-		ver = splittedByColon[1]
-	}
-	cveIDs, err = o.parseChangelog(changelog, packName, ver)
-	if err == nil {
-		return
+		versionOrLater = splittedByColon[1]
 	}
 
-	//TODO report as unable to parse changelog.
-	o.log.Warn(err)
-	return []string{}, nil
+	return o.parseChangelog(changelog, packName, versionOrLater)
 }
 
 // Collect CVE-IDs included in the changelog.
@@ -609,6 +614,74 @@ func (o *debian) parseChangelog(changelog string,
 		return []string{}, fmt.Errorf(
 			"Failed to scan CVE IDs. The version is not in changelog. name: %s, version: %s",
 			packName,
+			versionOrLater,
+		)
+	}
+	return
+}
+
+func (o *debian) getCveIDParsingChangelogBySemVer(
+	changelog string, packName string, versionOrLater string) (cveIDs []string, err error) {
+
+	versionOrLaterSemVer := strings.Split(versionOrLater, "-")[0]
+	splitted := strings.Split(versionOrLaterSemVer, ":")
+	if 1 < len(splitted) {
+		versionOrLaterSemVer = splitted[1]
+	}
+
+	c, err := semver.NewConstraint(
+		fmt.Sprintf("> %s", versionOrLaterSemVer))
+	if err != nil {
+		return []string{}, fmt.Errorf(
+			"Failed to scan CVE IDs. The format of version is not semantic version. name: %s, semVer: %s, version: %s",
+			packName,
+			versionOrLaterSemVer,
+			versionOrLater,
+		)
+	}
+	foundStopCondition := false
+
+	lines := strings.Split(changelog, "\n")
+	for _, line := range lines {
+
+		// find CVE-ID
+		cveRe, _ := regexp.Compile(`(CVE-\d{4}-\d{4})`)
+		if matches := cveRe.FindAllString(line, -1); len(matches) > 0 {
+			for _, m := range matches {
+				cveIDs = util.AppendIfMissing(cveIDs, m)
+			}
+			continue
+		}
+
+		if strings.HasPrefix(line, " ") {
+			continue
+		}
+
+		// find Semantic Version
+		re := regexp.MustCompile(` \(.*?\) `)
+		version := re.FindString(line)
+		if version == "" {
+			continue
+		}
+		version = strings.TrimPrefix(version, " (")
+		version = strings.TrimSuffix(version, ") ")
+		semVersion := strings.Split(version, "-")[0]
+		v, err := semver.NewVersion(semVersion)
+		if err != nil {
+			continue
+		}
+
+		if !c.Check(v) {
+			foundStopCondition = true
+			break
+		}
+	}
+
+	if !foundStopCondition {
+		return []string{}, fmt.Errorf(
+			"Failed to scan CVE IDs. The semantic version is not in changelog. name: %s, semver: %s, version: %s",
+			packName,
+			versionOrLaterSemVer,
 			versionOrLater,
 		)
 	}
